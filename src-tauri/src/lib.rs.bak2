@@ -1,0 +1,124 @@
+
+// src-tauri/src/lib.rs
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// 1. *** 添加所有需要的 use 语句 ***
+use std::collections::HashMap;
+use base64::{Engine as _, engine::general_purpose};
+use warp::{Filter, Reply}; // 关键：导入 Reply trait
+#[tauri::command]
+fn greet(name: &str) -> String {
+format!("Hello, {}! You've been greeted from Rust!", name)
+}
+// 启动本地代理服务器
+async fn start_proxy_server() {
+// 定义代理路由
+let proxy_route = warp::path("proxy") // 匹配 /proxy 路径
+.and(warp::query::<HashMap<String, String>>()) // 提取所有查询参数
+.and(warp::header::optional::<String>("range")) // 提取可选的 range 头
+.and_then(handle_proxy_request); // 交给处理函数
+println!("🚀 代理服务器启动在 http://127.0.0.1:7878");
+warp::serve(proxy_route).run(([127, 0, 0, 1], 7878)).await;
+}
+// 代理请求的处理函数
+async fn handle_proxy_request(
+params: HashMap<String, String>,
+range_header: Option<String>,
+) -> Result<impl Reply, warp::Rejection> {
+println!("📥 收到代理请求");
+// 获取并解码 URL
+let real_url = match params.get("url") {
+    Some(encoded_url) => {
+        match general_purpose::URL_SAFE_NO_PAD.decode(encoded_url.as_bytes()) {
+            Ok(bytes) => String::from_utf8(bytes).map_err(|_| warp::reject())?,
+            Err(_) => return Ok(warp::reply::with_status("Invalid Base64 URL", warp::http::StatusCode::BAD_REQUEST).into_response()),
+        }
+    },
+    None => return Ok(warp::reply::with_status("Missing url parameter", warp::http::StatusCode::BAD_REQUEST).into_response()),
+};
+
+// 获取并解码 Cookie
+let cookies = match params.get("cookie") {
+    Some(encoded_cookie) => {
+        match general_purpose::URL_SAFE_NO_PAD.decode(encoded_cookie.as_bytes()) {
+            Ok(bytes) => String::from_utf8(bytes).unwrap_or_default(),
+            Err(_) => String::new(),
+        }
+    },
+    None => String::new(),
+};
+
+// 创建 reqwest 客户端
+let client = reqwest::Client::new();
+let mut req_builder = client
+    .get(&real_url)
+    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch")
+    .header("Referer", "https://pan.quark.cn/")
+    .header("Origin", "https://pan.quark.cn/"); // **关键：添加 Origin 头**
+
+if !cookies.is_empty() {
+    req_builder = req_builder.header("Cookie", &cookies);
+}
+if let Some(range) = range_header {
+    req_builder = req_builder.header("Range", range);
+}
+
+println!("🚀 发送请求至: {}", real_url);
+
+
+// *** 2. 打印即将发送到夸克服务器的 Headers ***
+//    我们需要克隆 req_builder 才能在发送前检查它
+if let Some(request_to_print) = req_builder.try_clone() {
+    if let Ok(built_request) = request_to_print.build() {
+        println!("  -> 即将发送至夸克的 Headers:");
+        for (key, value) in built_request.headers().iter() {
+            println!("     {}: {:?}", key, value);
+        }
+    }
+}
+
+// 发送请求
+match req_builder.send().await {
+    Ok(response) => {
+        let status = response.status();
+        let mut reply_builder = warp::http::Response::builder().status(status);
+        
+        // 转发响应头
+        for (name, value) in response.headers() {
+            reply_builder = reply_builder.header(name.as_str(), value.as_bytes());
+        }
+
+        match response.bytes().await {
+            Ok(bytes) => {
+                println!("✅ 返回: {} bytes", bytes.len());
+                Ok(reply_builder.body(bytes.to_vec()).unwrap().into_response())
+            }
+            Err(e) => {
+                eprintln!("❌ 读取响应体失败: {}", e);
+                Ok(warp::reply::with_status(e.to_string(), warp::http::StatusCode::INTERNAL_SERVER_ERROR).into_response())
+            }
+        }
+    }
+    Err(e) => {
+        eprintln!("❌ 请求失败: {}", e);
+        Ok(warp::reply::with_status(e.to_string(), warp::http::StatusCode::INTERNAL_SERVER_ERROR).into_response())
+    }
+}
+}
+// 最终的 run 函数
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+// 在一个新的线程中，为 tokio 创建一个运行时并启动服务器
+std::thread::spawn(|| {
+let rt = tokio::runtime::Builder::new_current_thread()
+.enable_all()
+.build()
+.unwrap();
+rt.block_on(start_proxy_server());
+});
+tauri::Builder::default()
+    .plugin(tauri_plugin_http::init())
+    .plugin(tauri_plugin_opener::init())
+    .invoke_handler(tauri::generate_handler![greet])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
+}

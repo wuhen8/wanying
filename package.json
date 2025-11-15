@@ -1,0 +1,32 @@
+{
+  "name": "wanying",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.8",
+    "@mdi/font": "^7.4.47",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-fs": "~2",
+    "@tauri-apps/plugin-http": "~2.5.4",
+    "@tauri-apps/plugin-opener": "^2",
+    "artplayer": "^5.3.0",
+    "hls.js": "^1.6.14",
+    "pinia": "^3.0.4",
+    "tauri-plugin-videoplayer-api": "^0.1.6",
+    "vue": "^3.5.13",
+    "vue-router": "4",
+    "vuetify": "^3.10.9"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.3"
+  }
+}
