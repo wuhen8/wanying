@@ -161,7 +161,6 @@
       let vod_play_url = await cloud.value.detailContentVodPlayUrl(jsonRes.vod_play_url);
       let vod_play_from = await cloud.value.detailContentVodPlayFrom(jsonRes.vod_play_url);
       
-      
       if (jsonRes && vod_play_url) {
         videoInfo.value = jsonRes;
         parsePlaySources(vod_play_from, vod_play_url);

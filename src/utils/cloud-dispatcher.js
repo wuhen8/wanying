@@ -110,6 +110,9 @@ export class Cloud {
      * @returns {Promise<string>} - 返回 '$$$' 分隔的、包含待解析 ID 的播放 URL 字符串
      */
     async detailContentVodPlayUrl(shareLinks) {
+        if (typeof shareLinks === 'string') {
+            return shareLinks;
+        }
         const urls = [];
         for (const shareLink of shareLinks) {
             if (AliDrive.pattern.test(shareLink)) {
@@ -138,6 +141,9 @@ export class Cloud {
      * @returns {string} - 返回 '$$$' 分隔的播放源名称字符串
      */
     async detailContentVodPlayFrom(shareLinks) {
+        // if (typeof shareLinks === 'string') {
+        //     return shareLinks;
+        // }
         const froms = [];
         let indexInWoggList = 0;
         for (const shareLink of shareLinks) {
