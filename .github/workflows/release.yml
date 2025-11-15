@@ -4,9 +4,10 @@ name: 'Release Tauri App'
 
 # 这个工作流会在你推送一个以 "v" 开头的标签（例如 v1.0.0）时触发
 on:
-  push:
-    tags:
-      - 'v*'
+  # push:
+  #   tags:
+  #     - 'v*'
+  workflow_dispatch:
 
 jobs:
   release-tauri:
