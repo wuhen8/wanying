@@ -1,0 +1,69 @@
+# .github/workflows/release.yml
+
+name: 'Release Tauri App'
+
+# 这个工作流会在你推送一个以 "v" 开头的标签（例如 v1.0.0）时触发
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-tauri:
+    # 定义构建策略，这里是关键
+    strategy:
+      fail-fast: false
+      matrix:
+        # 在这三个平台上分别运行构建任务
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    # 根据上面的平台矩阵，选择对应的虚拟机
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # 1. 检出你的代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Rust 环境并缓存，加快构建速度
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 3. 设置 Node.js 环境
+      - name: Node.js setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 你可以改成你项目使用的 Node.js 版本
+          cache: 'npm' # 如果你用 yarn 或 pnpm，请相应修改
+
+      # 4. (仅 Linux) 安装必要的系统依赖
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # 5. 安装前端依赖
+      - name: Install frontend dependencies
+        run: npm install # 如果你用 yarn 或 pnpm，请相应修改为 'yarn install' 或 'pnpm install'
+
+      # 6. 使用 Tauri Action 构建并创建 Release
+      # 这是最核心的一步
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # tagName 使用触发工作流的 Git 标签，例如 "v0.1.0"
+          tagName: ${{ github.ref_name }}
+          # releaseName 的格式为 "App Name v0.1.0"
+          releaseName: 'App v__VERSION__' # __VERSION__ 会被替换为 package.json 中的版本号
+          # releaseBody 可以写一些发布说明
+          releaseBody: 'See the assets to download this version.'
+          # releaseDraft 设置为 true，表示先创建一个草稿 Release，所有平台的构建都成功后再手动发布
+          releaseDraft: true
+          # prerelease 设置为 false，如果这是预发布版可以设为 true
+          prerelease: false
