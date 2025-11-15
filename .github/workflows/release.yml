@@ -37,8 +37,8 @@ jobs:
       - name: Node.js setup
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # 你可以改成你项目使用的 Node.js 版本
-          cache: 'npm' # 如果你用 yarn 或 pnpm，请相应修改
+          node-version: '22' # 你可以改成你项目使用的 Node.js 版本
+          cache: 'pnpm' # 如果你用 yarn 或 pnpm，请相应修改
 
       # 4. (仅 Linux) 安装必要的系统依赖
       - name: Install Linux dependencies
@@ -49,7 +49,7 @@ jobs:
 
       # 5. 安装前端依赖
       - name: Install frontend dependencies
-        run: npm install # 如果你用 yarn 或 pnpm，请相应修改为 'yarn install' 或 'pnpm install'
+        run: pnpm install # 如果你用 yarn 或 pnpm，请相应修改为 'yarn install' 或 'pnpm install'
 
       # 6. 使用 Tauri Action 构建并创建 Release
       # 这是最核心的一步
